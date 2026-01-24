@@ -2,514 +2,149 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期限の森 - 賞味期限を木に変える</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; }
-        .bg-soft { background: linear-gradient(135deg, #f0fdf4 0%, #e1f4e9 100%); }
-        .floating { animation: float 3s infinite ease-in-out; }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .tree-card { animation: slideIn 0.5s ease-out; }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
-</head>
-<body class="bg-soft min-h-screen text-slate-800">
-
-    <div id="app" class="max-w-md mx-auto flex flex-col p-6 min-h-screen">
-        <!-- ヘッダーエリア -->
-        <header class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-3">
-                <div class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg shadow-emerald-200">
-                    <i class="fas fa-tree text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-black text-xl tracking-tighter text-emerald-900 leading-none">期限の森</h1>
-                    <p class="text-[9px] font-bold text-emerald-600 mt-1 uppercase tracking-widest">Digital Forest Admin</p>
-                </div>
-            </div>
-            <!-- コピーしたStripe URLをセット -->
-            <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 hover:bg-amber-500 text-amber-900 px-4 py-2 rounded-full font-black shadow-md transition-all active:scale-95 flex items-center gap-1.5">
-                <i class="fas fa-crown"></i> PREMIUM
-            </a>
-        </header>
-
-        <!-- メイン入力フォーム -->
-        <div class="bg-white/80 backdrop-blur-xl p-6 rounded-[2.5rem] shadow-sm border border-white/60 mb-8">
-            <h2 class="text-xs font-black text-emerald-800 mb-4 text-center uppercase tracking-widest">Plant a New Tree</h2>
-            <div class="space-y-3">
-                <div class="relative">
-                    <i class="fas fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-                    <input id="item-name" type="text" placeholder="食材の名前（例：牛乳）" class="w-full pl-11 pr-4 py-4 rounded-2xl border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm font-medium">
-                </div>
-                <div class="relative">
-                    <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-                    <input id="item-date" type="date" class="w-full pl-11 pr-4 py-4 rounded-2xl border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-sm font-medium">
-                </div>
-                <button onclick="addItem()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black text-md shadow-xl shadow-emerald-100 transition-all active:scale-[0.98]">
-                    森に木を植える
-                </button>
-            </div>
-        </div>
-
-        <!-- あなたの森（リスト） -->
-        <div class="flex-1">
-            <div class="flex items-center justify-between mb-5 px-3">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Your Forest</h3>
-                <span id="tree-count" class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">0 TREES</span>
-            </div>
-            <div id="forest-list" class="space-y-4 pb-24">
-                <!-- ここに動的に木が追加されます -->
-            </div>
-        </div>
-
-        <!-- プレミアム訴求バナー -->
-        <div class="fixed bottom-6 left-6 right-6 max-w-md mx-auto">
-            <div class="bg-slate-900 rounded-[2rem] p-5 shadow-2xl border border-slate-800 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-amber-300 to-amber-500 rounded-xl flex items-center justify-center text-slate-900 shadow-inner">
-                        <i class="fas fa-star text-lg"></i>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-black text-amber-400 uppercase tracking-widest leading-none">Special Offer</p>
-                        <p class="text-white font-bold text-xs mt-1">100種以上のレアな木を解放</p>
-                    </div>
-                </div>
-                <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="bg-white text-slate-900 px-4 py-2.5 rounded-xl font-black text-[10px] hover:bg-slate-100 transition-colors">
-                    詳細を見る
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let items = [];
-
-        function addItem() {
-            const nameEl = document.getElementById('item-name');
-            const dateEl = document.getElementById('item-date');
-            
-            if (!nameEl.value || !dateEl.value) {
-                alert("食材と期限を入力してね！");
-                return;
-            }
-
-            const newItem = {
-                id: Date.now(),
-                name: nameEl.value,
-                date: new Date(dateEl.value)
-            };
-
-            items.push(newItem);
-            nameEl.value = '';
-            dateEl.value = '';
-            renderForest();
-        }
-
-        function renderForest() {
-            const list = document.getElementById('forest-list');
-            const countLabel = document.getElementById('tree-count');
-            
-            countLabel.innerText = `${items.length} TREES`;
-
-            if (items.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-16 opacity-30">
-                        <i class="fas fa-seedling text-6xl mb-4 text-emerald-200"></i>
-                        <p class="text-xs font-bold tracking-widest">森はまだ空っぽです</p>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = items.sort((a,b) => a.date - b.date).map(item => {
-                const diff = Math.ceil((item.date - new Date()) / (1000 * 60 * 60 * 24));
-                let colorClass = "text-emerald-500";
-                let status = `あと ${diff} 日`;
-                let icon = "fa-tree";
-                
-                if (diff <= 0) {
-                    colorClass = "text-slate-300";
-                    status = "期限切れ";
-                    icon = "fa-skull-crossbones";
-                } else if (diff <= 3) {
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期限の森 - クラウド保存版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; }
-        .bg-soft { background: linear-gradient(135deg, #f0fdf4 0%, #e1f4e9 100%); }
-        .floating { animation: float 3s infinite ease-in-out; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .loading-dots:after { content: '.'; animation: dots 1.5s steps(5, end) infinite; }
-        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
-    </style>
-</head>
-<body class="bg-soft min-h-screen text-slate-800">
-
-    <div id="app" class="max-w-md mx-auto flex flex-col p-6 min-h-screen">
-        <!-- ヘッダー -->
-        <header class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-3">
-                <div class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg">
-                    <i class="fas fa-tree text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-black text-xl tracking-tighter text-emerald-900 leading-none">期限の森</h1>
-                    <p id="auth-status" class="text-[9px] font-bold text-emerald-600 mt-1 uppercase tracking-widest">Connecting...</p>
-                </div>
-            </div>
-            <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md flex items-center gap-1.5">
-                <i class="fas fa-crown"></i> PREMIUM
-            </a>
-        </header>
-
-        <!-- 入力フォーム -->
-        <div class="bg-white/80 backdrop-blur-xl p-6 rounded-[2.5rem] shadow-sm border border-white/60 mb-8">
-            <div class="space-y-3">
-                <input id="item-name" type="text" placeholder="食材の名前" class="w-full px-4 py-4 rounded-2xl border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium">
-                <input id="item-date" type="date" class="w-full px-4 py-4 rounded-2xl border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium">
-                <button id="add-btn" onclick="addItem()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-xl disabled:opacity-50 transition-all active:scale-[0.98]">
-                    森に木を植える
-                </button>
-            </div>
-        </div>
-
-        <!-- あなたの森 -->
-        <div class="flex-1">
-            <div class="flex items-center justify-between mb-5 px-3">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Your Forest</h3>
-                <span id="tree-count" class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full text-center min-w-[50px]">0 TREES</span>
-            </div>
-            <div id="forest-list" class="space-y-4 pb-24">
-                <!-- ここにクラウドから読み込んだデータが表示されます -->
-                <div class="text-center py-10 text-slate-400 text-sm loading-dots">読み込み中</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Firebase SDK (データ保存用) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase設定 (環境変数から取得)
-        const firebaseConfig = JSON.parse('{"apiKey":"","authDomain":"kigen-mori.firebaseapp.com","projectId":"kigen-mori","storageBucket":"kigen-mori.firebasestorage.app","messagingSenderId":"","appId":""}');
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = "kigen-mori";
-
-        let currentUser = null;
-
-        // 匿名ログイン実行
-        signInAnonymously(auth).catch(err => console.error("Auth Error:", err));
-
-        // ログイン状態の監視
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('auth-status').innerText = "Cloud Connected";
-                loadData();
-            }
-        });
-
-        // データの追加
-        window.addItem = async () => {
-            const nameEl = document.getElementById('item-name');
-            const dateEl = document.getElementById('item-date');
-            const btn = document.getElementById('add-btn');
-
-            if (!nameEl.value || !dateEl.value || !currentUser) return;
-
-            btn.disabled = true;
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'trees'), {
-                    name: nameEl.value,
-                    date: dateEl.value,
-                    createdAt: Date.now()
-                });
-                nameEl.value = '';
-                dateEl.value = '';
-            } catch (e) {
-                alert("保存に失敗しました");
-            }
-            btn.disabled = false;
-        };
-
-        // データの削除
-        window.deleteItem = async (id) => {
-            if (!currentUser) return;
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'trees', id));
-        };
-
-        // データのリアルタイム読み込み
-        function loadData() {
-            const q = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'trees');
-            onSnapshot(q, (snapshot) => {
-                const items = [];
-                snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期限の森 - Final Fix</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; }
-        .bg-soft { background: linear-gradient(135deg, #f0fdf4 0%, #e1f4e9 100%); }
-        .floating { animation: float 3s infinite ease-in-out; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .gold-glow { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6)); }
-    </style>
-</head>
-<body class="bg-soft min-h-screen text-slate-800">
-
-    <div id="app" class="max-w-md mx-auto flex flex-col p-6 min-h-screen">
-        <!-- ヘッダー -->
-        <header class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-3">
-                <div id="logo-icon" class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg">
-                    <i class="fas fa-tree text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-black text-xl tracking-tighter text-emerald-900 leading-none">期限の森</h1>
-                    <p id="status-label" class="text-[9px] font-bold text-emerald-600 mt-1 uppercase tracking-widest">Loading...</p>
-                </div>
-            </div>
-            <div id="premium-btn-top">
-                <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all">
-                    <i class="fas fa-crown"></i> PREMIUM
-                </a>
-            </div>
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期限の森 - Start Now</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; background: linear-gradient(135deg, #f0fdf4 0%, #e1f4e9 100%); }
-        .floating { animation: float 3s infinite ease-in-out; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .gold-glow { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)); color: #fbbf24 !important; }
-    </style>
-</head>
-<body class="min-h-screen text-slate-800">
-
-    <div id="app" class="max-w-md mx-auto flex flex-col p-6 min-h-screen">
-        <!-- ヘッダー -->
-        <header class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-3">
-                <div id="logo-icon" class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg transition-all">
-                    <i class="fas fa-tree text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-black text-xl tracking-tighter text-emerald-900 leading-none">期限の森</h1>
-                    <p id="status-label" class="text-[9px] font-bold text-emerald-600 mt-1 uppercase tracking-widest">Active Mode</p>
-                </div>
-            </div>
-            <div id="premium-btn-top">
-                <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md flex items-center gap-1.5 active:scale-95">
-                    <i class="fas fa-crown"></i> PREMIUM
-                </a>
-            </div>
-        </header>
-
-        <!-- 入力フォーム -->
-        <div class="bg-white/80 backdrop-blur-xl p-6 rounded-[2.5rem] shadow-sm border border-white/60 mb-8">
-            <div class="space-y-3">
-                <input id="item-name" type="text" placeholder="食材の名前（例：牛乳）" class="w-full px-4 py-4 rounded-2xl border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium">
-                <input id="item-date" type="date" class="w-full px-4 py-4 rounded-2xl border-none ring-1 ring-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium">
-                <button onclick="addItem()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-[0.98] transition-all" id="add-btn">
-                    森に木を植える
-                </button>
-            </div>
-        </div>
-
-        <!-- あなたの森 -->
-        <div class="flex-1">
-            <div class="flex items-center justify-between mb-5 px-3">
-                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Your Forest</h3>
-                <span id="tree-count" class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full text-center">0 TREES</span>
-            </div>
-            <div id="forest-list" class="space-y-4 pb-32">
-                <!-- ここに木が表示されます -->
-            </div>
-        </div>
-
-        <!-- プレミアム体験ボタン -->
-        <div class="fixed bottom-6 left-6 right-6 max-w-md mx-auto z-50">
-            <button onclick="togglePremium()" id="demo-btn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[11px] shadow-2xl border border-slate-700 active:scale-95">
-                <i class="fas fa-magic mr-2"></i>プレミアム機能を体験する
-            </button>
-        </div>
-    </div>
-
-    <script>
-        // データを保存する仕組み（ブラウザ保存）
-        let items = JSON.parse(localStorage.getItem('kigen_mori_items') || '[]');
-        let isPremium = JSON.parse(localStorage.getItem('kigen_mori_premium') || 'false');
-
-        // 起動時に画面を整える
-        function init() {
-            if (isPremium) {
-                applyPremiumUI();
-            }
-            renderForest();
-        }
-
-        // プレミアム切り替え
-        function togglePremium() {
-            isPremium = !isPremium;
-            localStorage.setItem('kigen_mori_premium', JSON.stringify(isPremium));
-            if (isPremium) {
-                applyPremiumUI();
-            } else {
-                location.reload(); // スタンダードに戻すときはリロード
-            }
-            renderForest();
-        }
-
-        function applyPremiumUI() {
-            document.getElementById('status-label').innerText = "Premium Member";
-            document.getElementById('status-label').className = "text-[9px] font-bold text-amber-500 mt-1 uppercase tracking-widest";
-            document.getElementById('logo-icon').className = "bg-amber-500 p-2.5 rounded-2xl text-white shadow-lg";
-            document.getElementById('premium-btn-top').style.display = 'none';
-            document.getElementById('add-btn').className = "w-full bg-amber-600 text-white py-4 rounded-2xl font-black shadow-xl";
-            document.getElementById('demo-btn').innerHTML = '<i class="fas fa-undo mr-2"></i>スタンダードに戻す';
-        }
-
-        // 木を植える
-        function addItem() {
-            const name = document.getElementById('item-name').value;
-            const date = document.getElementById('item-date').value;
-            if (!name || !date) return;
-
-            const newItem = {
-                id: Date.now(),
-                name: name,
-                date: date,
-                isGold: isPremium // プレミアム中に植えると黄金の木になる
-            };
-
-            items.push(newItem);
-            save();
-            renderForest();
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>期限の森</title>
+    <title>期限の森 - Evolution</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f0fdf4; }
-        .gold-glow { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)); color: #fbbf24 !important; }
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f0fdf4; margin: 0; padding: 0; }
+        .gold-glow { filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.9)); color: #fbbf24 !important; }
         .floating { animation: float 3s infinite ease-in-out; }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .tree-entry { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        /* 画面が重ならないように固定 */
+        #app-container { min-height: 100vh; display: flex; flex-direction: column; }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <div class="max-w-md mx-auto p-6 pb-32">
+    <div id="app-container" class="max-w-md mx-auto p-6 pb-40">
         <!-- ヘッダー -->
-        <div class="flex items-center justify-between mb-8">
+        <header class="flex items-center justify-between mb-8">
             <div class="flex items-center gap-3">
                 <div id="logo-bg" class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg transition-all">
                     <i class="fas fa-tree text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="font-black text-xl text-emerald-900 leading-none">期限の森</h1>
-                    <p id="status-text" class="text-[10px] font-bold text-emerald-600 mt-1 uppercase tracking-widest">Standard Mode</p>
+                    <h1 class="font-black text-xl text-emerald-900 leading-none tracking-tighter">期限の森</h1>
+                    <p id="status-text" class="text-[10px] font-black text-emerald-600 mt-1 uppercase tracking-[0.2em]">Standard Edition</p>
                 </div>
             </div>
-            <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md">
+            <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md hover:scale-105 transition-transform">
                 <i class="fas fa-crown"></i> PREMIUM
             </a>
-        </div>
+        </header>
 
-        <!-- 入力 -->
-        <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-8 border border-white">
-            <div class="space-y-4">
-                <input id="in-name" type="text" placeholder="食材の名前" class="w-full p-4 rounded-xl bg-slate-50 border-none outline-none text-sm font-bold">
-                <input id="in-date" type="date" class="w-full p-4 rounded-xl bg-slate-50 border-none outline-none text-sm font-bold">
-                <button onclick="add()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg active:scale-95 transition-all">木を植える</button>
+        <!-- 統計パネル（プレミアム会員のみ） -->
+        <div id="premium-stats" class="hidden bg-emerald-900 text-white p-5 rounded-[2rem] shadow-xl mb-8 flex justify-around items-center">
+            <div class="text-center">
+                <p class="text-[9px] font-bold text-emerald-300 uppercase">森の密度</p>
+                <p id="stat-count" class="text-xl font-black">0</p>
+            </div>
+            <div class="w-px h-8 bg-emerald-700"></div>
+            <div class="text-center">
+                <p class="text-[9px] font-bold text-emerald-300 uppercase">黄金率</p>
+                <p id="stat-gold" class="text-xl font-black">0%</p>
             </div>
         </div>
 
-        <!-- 森 -->
+        <!-- 入力フォーム -->
+        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm mb-8 border border-white">
+            <div class="space-y-4">
+                <div class="relative">
+                    <i class="fas fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+                    <input id="in-name" type="text" placeholder="食材の名前" class="w-full pl-11 pr-4 py-4 rounded-2xl bg-slate-50 border-none outline-none text-sm font-bold focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div class="relative">
+                    <i class="fas fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+                    <input id="in-date" type="date" class="w-full pl-11 pr-4 py-4 rounded-2xl bg-slate-50 border-none outline-none text-sm font-bold focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <button onclick="add()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all text-sm uppercase tracking-widest">
+                    新しい木を植える
+                </button>
+            </div>
+        </div>
+
+        <!-- リスト -->
         <div id="list" class="space-y-4">
-            <!-- ここに木が出ます -->
+            <!-- JavaScriptで描写 -->
         </div>
     </div>
 
     <!-- プレミアム体験ボタン -->
-    <div class="fixed bottom-6 left-6 right-6 max-w-md mx-auto">
-        <button onclick="bePremium()" id="p-btn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs shadow-2xl border border-slate-700">
-            プレミアム機能を体験する
+    <div class="fixed bottom-6 left-6 right-6 max-w-md mx-auto z-50">
+        <button onclick="bePremium()" id="p-btn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] shadow-2xl border border-slate-700 flex items-center justify-center gap-2">
+            <i class="fas fa-sparkles text-amber-400"></i>
+            <span>プレミアム会員特典を体験する</span>
         </button>
     </div>
 
     <script>
-        let trees = JSON.parse(localStorage.getItem('my_trees') || '[]');
-        let mode = localStorage.getItem('my_mode') || 'normal';
+        // データの初期化
+        let trees = JSON.parse(localStorage.getItem('my_trees_v2') || '[]');
+        let mode = localStorage.getItem('my_mode_v2') || 'normal';
 
-        function show() {
+        function render() {
             const list = document.getElementById('list');
             const status = document.getElementById('status-text');
             const logo = document.getElementById('logo-bg');
             const pBtn = document.getElementById('p-btn');
+            const stats = document.getElementById('premium-stats');
 
+            // プレミアム表示の反映
             if (mode === 'premium') {
                 status.innerText = "Premium Member";
-                status.className = "text-[10px] font-bold text-amber-600 mt-1 uppercase tracking-widest";
+                status.className = "text-[10px] font-black text-amber-600 mt-1 uppercase tracking-[0.2em]";
                 logo.className = "bg-amber-500 p-2.5 rounded-2xl text-white shadow-lg";
-                pBtn.innerText = "スタンダードに戻す";
+                pBtn.innerHTML = '<i class="fas fa-undo"></i> <span>スタンダードに戻す</span>';
+                stats.classList.remove('hidden');
+                
+                const goldCount = trees.filter(t => t.gold).length;
+                document.getElementById('stat-count').innerText = trees.length;
+                document.getElementById('stat-gold').innerText = trees.length ? Math.round((goldCount/trees.length)*100) + '%' : '0%';
+            } else {
+                status.innerText = "Standard Edition";
+                status.className = "text-[10px] font-black text-emerald-600 mt-1 uppercase tracking-[0.2em]";
+                logo.className = "bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg";
+                pBtn.innerHTML = '<i class="fas fa-sparkles text-amber-400"></i> <span>プレミアム会員特典を体験する</span>';
+                stats.classList.add('hidden');
             }
 
             if (trees.length === 0) {
-                list.innerHTML = '<p class="text-center text-slate-400 text-xs font-bold py-10">木がありません</p>';
+                list.innerHTML = `
+                    <div class="text-center py-16 opacity-20">
+                        <i class="fas fa-seedling text-6xl mb-4"></i>
+                        <p class="text-xs font-black uppercase tracking-widest">No Life in Forest</p>
+                    </div>
+                `;
                 return;
             }
 
-            list.innerHTML = trees.map(t => {
+            // リストの生成
+            list.innerHTML = trees.sort((a,b) => new Date(a.date) - new Date(b.date)).map(t => {
                 const diff = Math.ceil((new Date(t.date) - new Date()) / (86400000));
                 const expired = diff <= 0;
-                let c = t.gold ? "gold-glow" : (expired ? "text-slate-300" : (diff <= 3 ? "text-amber-500" : "text-emerald-500"));
+                
+                let icon = t.gold ? "fa-tree" : (expired ? "fa-skull-crossbones" : (diff <= 3 ? "fa-leaf" : "fa-tree"));
+                let colorClass = t.gold ? "gold-glow" : (expired ? "text-slate-300" : (diff <= 3 ? "text-amber-500" : "text-emerald-500"));
+                
                 return `
-                    <div class="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4">
-                        <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center">
-                            <i class="fas ${expired ? 'fa-skull' : 'fa-tree'} ${c} text-xl floating"></i>
+                    <div class="tree-entry bg-white p-5 rounded-[2rem] shadow-sm flex items-center gap-4 border border-white">
+                        <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shadow-inner overflow-hidden">
+                            <i class="fas ${icon} ${colorClass} text-2xl floating"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="font-bold text-sm text-slate-800">${t.name}</p>
-                            <p class="text-[10px] font-black uppercase ${t.gold ? 'text-amber-500' : 'text-slate-400'}">${expired ? 'Expired' : 'Days: ' + diff}</p>
+                            <p class="font-black text-sm text-slate-800 leading-tight">${t.name}</p>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${expired ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}">
+                                    ${expired ? 'Expired' : 'Days: ' + diff}
+                                </span>
+                                ${t.gold ? '<span class="text-[9px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full uppercase">Premium</span>' : ''}
+                            </div>
                         </div>
-                        <button onclick="del(${t.id})" class="text-slate-200 p-2"><i class="fas fa-trash"></i></button>
+                        <button onclick="del(${t.id})" class="text-slate-200 hover:text-red-400 p-2 transition-colors"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 `;
             }).join('');
@@ -519,25 +154,33 @@
             const n = document.getElementById('in-name');
             const d = document.getElementById('in-date');
             if(!n.value || !d.value) return;
-            trees.push({ id: Date.now(), name: n.value, date: d.value, gold: mode === 'premium' });
-            localStorage.setItem('my_trees', JSON.stringify(trees));
+            
+            trees.push({ 
+                id: Date.now(), 
+                name: n.value, 
+                date: d.value, 
+                gold: mode === 'premium' 
+            });
+            
+            localStorage.setItem('my_trees_v2', JSON.stringify(trees));
             n.value = ''; d.value = '';
-            show();
+            render();
         }
 
         function del(id) {
             trees = trees.filter(t => t.id !== id);
-            localStorage.setItem('my_trees', JSON.stringify(trees));
-            show();
+            localStorage.setItem('my_trees_v2', JSON.stringify(trees));
+            render();
         }
 
         function bePremium() {
             mode = (mode === 'normal') ? 'premium' : 'normal';
-            localStorage.setItem('my_mode', mode);
-            location.reload();
+            localStorage.setItem('my_mode_v2', mode);
+            render(); // リロードせずにそのまま切り替え
         }
 
-        show();
+        // 読み込み完了時に実行
+        window.onload = render;
     </script>
 </body>
 </html>
