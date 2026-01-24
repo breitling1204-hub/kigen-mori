@@ -3,184 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>期限の森 - Evolution</title>
+    <title>期限の森 - KIGEN MORI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f0fdf4; margin: 0; padding: 0; }
-        .gold-glow { filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.9)); color: #fbbf24 !important; }
-        .floating { animation: float 3s infinite ease-in-out; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .tree-entry { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
-        /* 画面が重ならないように固定 */
-        #app-container { min-height: 100vh; display: flex; flex-direction: column; }
+        body { 
+            font-family: 'Noto Sans JP', sans-serif; 
+            background: #f8fafc;
+            color: #0f172a;
+            margin: 0;
+            padding: 0;
+        }
+        .gold-glow { filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9)); color: #fbbf24 !important; }
+        .floating { animation: float 4s infinite ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        
+        /* モーダル用 */
+        #legal-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+        #legal-modal.active { display: flex; }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <div id="app-container" class="max-w-md mx-auto p-6 pb-40">
+    <div id="app" class="max-w-md mx-auto p-6 pb-44">
         <!-- ヘッダー -->
         <header class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-3">
-                <div id="logo-bg" class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg transition-all">
-                    <i class="fas fa-tree text-xl"></i>
+            <div class="flex items-center gap-4">
+                <div id="logo-bg" class="bg-emerald-600 p-3 rounded-2xl text-white shadow-lg">
+                    <i class="fas fa-tree text-2xl"></i>
                 </div>
                 <div>
-                    <h1 class="font-black text-xl text-emerald-900 leading-none tracking-tighter">期限の森</h1>
-                    <p id="status-text" class="text-[10px] font-black text-emerald-600 mt-1 uppercase tracking-[0.2em]">Standard Edition</p>
+                    <h1 class="font-black text-2xl tracking-tighter">期限の森</h1>
+                    <p id="status-label" class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Standard</p>
                 </div>
             </div>
-            <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md hover:scale-105 transition-transform">
-                <i class="fas fa-crown"></i> PREMIUM
+            <!-- 本番用URLに後で差し替え可能 -->
+            <a id="buy-link" href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="bg-amber-400 text-amber-900 px-5 py-2 rounded-full font-black text-[10px] shadow-md">
+                <i class="fas fa-crown mr-1"></i> PREMIUM
             </a>
         </header>
 
-        <!-- 統計パネル（プレミアム会員のみ） -->
-        <div id="premium-stats" class="hidden bg-emerald-900 text-white p-5 rounded-[2rem] shadow-xl mb-8 flex justify-around items-center">
-            <div class="text-center">
-                <p class="text-[9px] font-bold text-emerald-300 uppercase">森の密度</p>
-                <p id="stat-count" class="text-xl font-black">0</p>
-            </div>
-            <div class="w-px h-8 bg-emerald-700"></div>
-            <div class="text-center">
-                <p class="text-[9px] font-bold text-emerald-300 uppercase">黄金率</p>
-                <p id="stat-gold" class="text-xl font-black">0%</p>
+        <!-- プレミアムパネル -->
+        <div id="stats-panel" class="hidden bg-slate-900 rounded-[2rem] p-6 mb-8 text-white shadow-2xl">
+            <div class="flex justify-around items-center">
+                <div class="text-center">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total Trees</p>
+                    <p id="count-val" class="text-2xl font-black italic">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Gold Rate</p>
+                    <p id="gold-val" class="text-2xl font-black italic">0%</p>
+                </div>
             </div>
         </div>
 
-        <!-- 入力フォーム -->
-        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm mb-8 border border-white">
+        <!-- 植樹エリア -->
+        <div class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-8">
             <div class="space-y-4">
-                <div class="relative">
-                    <i class="fas fa-tag absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-                    <input id="in-name" type="text" placeholder="食材の名前" class="w-full pl-11 pr-4 py-4 rounded-2xl bg-slate-50 border-none outline-none text-sm font-bold focus:ring-2 focus:ring-emerald-500">
-                </div>
-                <div class="relative">
-                    <i class="fas fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-                    <input id="in-date" type="date" class="w-full pl-11 pr-4 py-4 rounded-2xl bg-slate-50 border-none outline-none text-sm font-bold focus:ring-2 focus:ring-emerald-500">
-                </div>
-                <button onclick="add()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all text-sm uppercase tracking-widest">
-                    新しい木を植える
-                </button>
+                <input id="tree-name" type="text" placeholder="食材の名前" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm">
+                <input id="tree-date" type="date" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm">
+                <button onclick="addTree()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all text-sm uppercase">新しい木を植える</button>
             </div>
         </div>
 
         <!-- リスト -->
-        <div id="list" class="space-y-4">
-            <!-- JavaScriptで描写 -->
+        <div id="forest-list" class="space-y-4"></div>
+
+        <!-- フッター（審査対策の法的リンク） -->
+        <footer class="mt-20 text-center pb-10">
+            <div class="flex justify-center gap-6 text-[10px] font-bold text-slate-400">
+                <button onclick="showLegal()" class="hover:text-emerald-600 transition-colors">特定商取引法に基づく表記</button>
+                <a href="#" class="hover:text-emerald-600 transition-colors">プライバシーポリシー</a>
+            </div>
+            <p class="mt-4 text-[8px] text-slate-300 tracking-widest uppercase">&copy; 2024 KIGEN MORI Project</p>
+        </footer>
+    </div>
+
+    <!-- 法的表記モーダル -->
+    <div id="legal-modal">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 max-h-[80vh] overflow-y-auto relative">
+            <button onclick="hideLegal()" class="absolute top-6 right-6 text-slate-300"><i class="fas fa-times text-xl"></i></button>
+            <h2 class="font-black text-lg mb-6 text-emerald-900">特定商取引法に基づく表記</h2>
+            <div class="space-y-6 text-[11px] leading-relaxed text-slate-600">
+                <div>
+                    <p class="font-black text-slate-800 uppercase text-[9px]">販売業者</p>
+                    <p>期限の森 運営事務局（個人運営）</p>
+                </div>
+                <div>
+                    <p class="font-black text-slate-800 uppercase text-[9px]">お問い合わせ先</p>
+                    <p>あなたのメールアドレスや連絡先をご記入ください</p>
+                </div>
+                <div>
+                    <p class="font-black text-slate-800 uppercase text-[9px]">販売価格</p>
+                    <p>プレミアムプラン：300円（税込）</p>
+                </div>
+                <div>
+                    <p class="font-black text-slate-800 uppercase text-[9px]">代金の支払時期と方法</p>
+                    <p>クレジットカード（Stripe決済）による即時決済となります。</p>
+                </div>
+                <div>
+                    <p class="font-black text-slate-800 uppercase text-[9px]">返品・返金について</p>
+                    <p>デジタルコンテンツの特性上、決済完了後の返品・返金には応じられません。</p>
+                </div>
+            </div>
+            <button onclick="hideLegal()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-8 text-xs">閉じる</button>
         </div>
     </div>
 
-    <!-- プレミアム体験ボタン -->
-    <div class="fixed bottom-6 left-6 right-6 max-w-md mx-auto z-50">
-        <button onclick="bePremium()" id="p-btn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] shadow-2xl border border-slate-700 flex items-center justify-center gap-2">
-            <i class="fas fa-sparkles text-amber-400"></i>
-            <span>プレミアム会員特典を体験する</span>
+    <!-- 開発用体験ボタン -->
+    <div class="fixed bottom-8 left-6 right-6 max-w-md mx-auto z-50">
+        <button onclick="toggleMode()" id="demo-btn" class="w-full bg-white/90 backdrop-blur text-slate-900 py-4 rounded-[1.5rem] font-black text-[10px] shadow-2xl border border-white flex items-center justify-center gap-3">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            プレミアム体験モードを切り替える
         </button>
     </div>
 
     <script>
-        // データの初期化
-        let trees = JSON.parse(localStorage.getItem('my_trees_v2') || '[]');
-        let mode = localStorage.getItem('my_mode_v2') || 'normal';
+        let forest = JSON.parse(localStorage.getItem('kigen_forest') || '[]');
+        let mode = localStorage.getItem('kigen_mode') || 'standard';
 
-        function render() {
-            const list = document.getElementById('list');
-            const status = document.getElementById('status-text');
+        function updateUI() {
+            const list = document.getElementById('forest-list');
+            const status = document.getElementById('status-label');
             const logo = document.getElementById('logo-bg');
-            const pBtn = document.getElementById('p-btn');
-            const stats = document.getElementById('premium-stats');
+            const stats = document.getElementById('stats-panel');
+            const buyLink = document.getElementById('buy-link');
 
-            // プレミアム表示の反映
             if (mode === 'premium') {
                 status.innerText = "Premium Member";
-                status.className = "text-[10px] font-black text-amber-600 mt-1 uppercase tracking-[0.2em]";
-                logo.className = "bg-amber-500 p-2.5 rounded-2xl text-white shadow-lg";
-                pBtn.innerHTML = '<i class="fas fa-undo"></i> <span>スタンダードに戻す</span>';
+                status.className = "text-[10px] font-black text-amber-500 uppercase tracking-widest";
+                logo.className = "bg-amber-500 p-3 rounded-2xl text-white shadow-lg gold-glow";
                 stats.classList.remove('hidden');
+                buyLink.classList.add('hidden');
                 
-                const goldCount = trees.filter(t => t.gold).length;
-                document.getElementById('stat-count').innerText = trees.length;
-                document.getElementById('stat-gold').innerText = trees.length ? Math.round((goldCount/trees.length)*100) + '%' : '0%';
+                const golds = forest.filter(t => t.gold).length;
+                document.getElementById('count-val').innerText = forest.length;
+                document.getElementById('gold-val').innerText = forest.length ? Math.round((golds/forest.length)*100) + '%' : '0%';
             } else {
-                status.innerText = "Standard Edition";
-                status.className = "text-[10px] font-black text-emerald-600 mt-1 uppercase tracking-[0.2em]";
-                logo.className = "bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg";
-                pBtn.innerHTML = '<i class="fas fa-sparkles text-amber-400"></i> <span>プレミアム会員特典を体験する</span>';
+                status.innerText = "Standard";
+                status.className = "text-[10px] font-black text-emerald-600 uppercase tracking-widest";
+                logo.className = "bg-emerald-600 p-3 rounded-2xl text-white shadow-lg";
                 stats.classList.add('hidden');
+                buyLink.classList.remove('hidden');
             }
 
-            if (trees.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-16 opacity-20">
-                        <i class="fas fa-seedling text-6xl mb-4"></i>
-                        <p class="text-xs font-black uppercase tracking-widest">No Life in Forest</p>
-                    </div>
-                `;
+            if (forest.length === 0) {
+                list.innerHTML = `<div class="text-center py-20 opacity-20 font-black text-xs">NO TREES IN FOREST</div>`;
                 return;
             }
 
-            // リストの生成
-            list.innerHTML = trees.sort((a,b) => new Date(a.date) - new Date(b.date)).map(t => {
-                const diff = Math.ceil((new Date(t.date) - new Date()) / (86400000));
-                const expired = diff <= 0;
-                
-                let icon = t.gold ? "fa-tree" : (expired ? "fa-skull-crossbones" : (diff <= 3 ? "fa-leaf" : "fa-tree"));
-                let colorClass = t.gold ? "gold-glow" : (expired ? "text-slate-300" : (diff <= 3 ? "text-amber-500" : "text-emerald-500"));
-                
+            list.innerHTML = forest.sort((a,b) => new Date(a.date) - new Date(b.date)).map(t => {
+                const diff = Math.ceil((new Date(t.date) - new Date()) / 86400000);
+                const isExpired = diff <= 0;
+                let icon = t.gold ? "fa-tree" : (isExpired ? "fa-skull" : "fa-tree");
+                let color = t.gold ? "gold-glow" : (isExpired ? "text-slate-300" : (diff <= 3 ? "text-amber-500" : "text-emerald-500"));
                 return `
-                    <div class="tree-entry bg-white p-5 rounded-[2rem] shadow-sm flex items-center gap-4 border border-white">
-                        <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shadow-inner overflow-hidden">
-                            <i class="fas ${icon} ${colorClass} text-2xl floating"></i>
+                    <div class="bg-white p-5 rounded-3xl shadow-sm flex items-center gap-5 border border-white">
+                        <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center">
+                            <i class="fas ${icon} ${color} text-2xl floating"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="font-black text-sm text-slate-800 leading-tight">${t.name}</p>
-                            <div class="flex items-center gap-2 mt-2">
-                                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${expired ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}">
-                                    ${expired ? 'Expired' : 'Days: ' + diff}
-                                </span>
-                                ${t.gold ? '<span class="text-[9px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full uppercase">Premium</span>' : ''}
-                            </div>
+                            <p class="font-black text-sm text-slate-800">${t.name}</p>
+                            <p class="text-[9px] font-black mt-1 uppercase ${isExpired ? 'text-slate-300' : 'text-emerald-600'}">
+                                ${isExpired ? 'Expired' : 'Days left: ' + diff}
+                            </p>
                         </div>
-                        <button onclick="del(${t.id})" class="text-slate-200 hover:text-red-400 p-2 transition-colors"><i class="fas fa-trash-alt"></i></button>
+                        <button onclick="removeTree(${t.id})" class="text-slate-200 p-2 hover:text-red-400 transition-colors"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 `;
             }).join('');
         }
 
-        function add() {
-            const n = document.getElementById('in-name');
-            const d = document.getElementById('in-date');
+        function addTree() {
+            const n = document.getElementById('tree-name');
+            const d = document.getElementById('tree-date');
             if(!n.value || !d.value) return;
-            
-            trees.push({ 
-                id: Date.now(), 
-                name: n.value, 
-                date: d.value, 
-                gold: mode === 'premium' 
-            });
-            
-            localStorage.setItem('my_trees_v2', JSON.stringify(trees));
+            forest.push({ id: Date.now(), name: n.value, date: d.value, gold: mode === 'premium' });
+            localStorage.setItem('kigen_forest', JSON.stringify(forest));
             n.value = ''; d.value = '';
-            render();
+            updateUI();
         }
 
-        function del(id) {
-            trees = trees.filter(t => t.id !== id);
-            localStorage.setItem('my_trees_v2', JSON.stringify(trees));
-            render();
+        function removeTree(id) {
+            forest = forest.filter(t => t.id !== id);
+            localStorage.setItem('kigen_forest', JSON.stringify(forest));
+            updateUI();
         }
 
-        function bePremium() {
-            mode = (mode === 'normal') ? 'premium' : 'normal';
-            localStorage.setItem('my_mode_v2', mode);
-            render(); // リロードせずにそのまま切り替え
+        function toggleMode() {
+            mode = (mode === 'standard') ? 'premium' : 'standard';
+            localStorage.setItem('kigen_mode', mode);
+            updateUI();
         }
 
-        // 読み込み完了時に実行
-        window.onload = render;
+        function showLegal() { document.getElementById('legal-modal').classList.add('active'); }
+        function hideLegal() { document.getElementById('legal-modal').classList.remove('active'); }
+
+        window.onload = updateUI;
     </script>
 </body>
 </html>
