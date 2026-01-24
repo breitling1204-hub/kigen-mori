@@ -417,59 +417,127 @@
             items.push(newItem);
             save();
             renderForest();
-            
-            document.getElementById('item-name').value = '';
-            document.getElementById('item-date').value = '';
-        }
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>期限の森</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f0fdf4; }
+        .gold-glow { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)); color: #fbbf24 !important; }
+        .floating { animation: float 3s infinite ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    </style>
+</head>
+<body class="min-h-screen">
 
-        // 木を消す
-        function deleteItem(id) {
-            items = items.filter(item => item.id !== id);
-            save();
-            renderForest();
-        }
+    <div class="max-w-md mx-auto p-6 pb-32">
+        <!-- ヘッダー -->
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-3">
+                <div id="logo-bg" class="bg-emerald-600 p-2.5 rounded-2xl text-white shadow-lg transition-all">
+                    <i class="fas fa-tree text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-xl text-emerald-900 leading-none">期限の森</h1>
+                    <p id="status-text" class="text-[10px] font-bold text-emerald-600 mt-1 uppercase tracking-widest">Standard Mode</p>
+                </div>
+            </div>
+            <a href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="text-[10px] bg-amber-400 text-amber-900 px-4 py-2 rounded-full font-black shadow-md">
+                <i class="fas fa-crown"></i> PREMIUM
+            </a>
+        </div>
 
-        function save() {
-            localStorage.setItem('kigen_mori_items', JSON.stringify(items));
-        }
+        <!-- 入力 -->
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm mb-8 border border-white">
+            <div class="space-y-4">
+                <input id="in-name" type="text" placeholder="食材の名前" class="w-full p-4 rounded-xl bg-slate-50 border-none outline-none text-sm font-bold">
+                <input id="in-date" type="date" class="w-full p-4 rounded-xl bg-slate-50 border-none outline-none text-sm font-bold">
+                <button onclick="add()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg active:scale-95 transition-all">木を植える</button>
+            </div>
+        </div>
 
-        function renderForest() {
-            const list = document.getElementById('forest-list');
-            document.getElementById('tree-count').innerText = `${items.length} TREES`;
+        <!-- 森 -->
+        <div id="list" class="space-y-4">
+            <!-- ここに木が出ます -->
+        </div>
+    </div>
 
-            if (items.length === 0) {
-                list.innerHTML = `<div class="text-center py-16 opacity-30"><i class="fas fa-seedling text-6xl text-emerald-200"></i><p class="mt-4 text-xs font-bold uppercase tracking-widest">No Trees Yet</p></div>`;
+    <!-- プレミアム体験ボタン -->
+    <div class="fixed bottom-6 left-6 right-6 max-w-md mx-auto">
+        <button onclick="bePremium()" id="p-btn" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs shadow-2xl border border-slate-700">
+            プレミアム機能を体験する
+        </button>
+    </div>
+
+    <script>
+        let trees = JSON.parse(localStorage.getItem('my_trees') || '[]');
+        let mode = localStorage.getItem('my_mode') || 'normal';
+
+        function show() {
+            const list = document.getElementById('list');
+            const status = document.getElementById('status-text');
+            const logo = document.getElementById('logo-bg');
+            const pBtn = document.getElementById('p-btn');
+
+            if (mode === 'premium') {
+                status.innerText = "Premium Member";
+                status.className = "text-[10px] font-bold text-amber-600 mt-1 uppercase tracking-widest";
+                logo.className = "bg-amber-500 p-2.5 rounded-2xl text-white shadow-lg";
+                pBtn.innerText = "スタンダードに戻す";
+            }
+
+            if (trees.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 text-xs font-bold py-10">木がありません</p>';
                 return;
             }
 
-            list.innerHTML = items.sort((a,b) => new Date(a.date) - new Date(b.date)).map(item => {
-                const diff = Math.ceil((new Date(item.date) - new Date()) / (1000 * 60 * 60 * 24));
-                const isExpired = diff <= 0;
-                
-                // 色の決定
-                let treeClass = "text-emerald-500";
-                if (item.isGold) treeClass = "gold-glow";
-                else if (isExpired) treeClass = "text-slate-300";
-                else if (diff <= 3) treeClass = "text-amber-500";
-
+            list.innerHTML = trees.map(t => {
+                const diff = Math.ceil((new Date(t.date) - new Date()) / (86400000));
+                const expired = diff <= 0;
+                let c = t.gold ? "gold-glow" : (expired ? "text-slate-300" : (diff <= 3 ? "text-amber-500" : "text-emerald-500"));
                 return `
-                    <div class="bg-white rounded-[1.8rem] p-5 shadow-sm flex items-center gap-4 border border-white animate-in slide-in-from-bottom duration-500">
-                        <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shadow-inner">
-                            <i class="fas ${isExpired ? 'fa-skull' : 'fa-tree'} ${treeClass} text-2xl floating"></i>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center">
+                            <i class="fas ${expired ? 'fa-skull' : 'fa-tree'} ${c} text-xl floating"></i>
                         </div>
                         <div class="flex-1">
-                            <h4 class="font-black text-slate-800 text-sm leading-none">${item.name}</h4>
-                            <p class="text-[10px] font-black mt-2 uppercase ${item.isGold ? 'text-amber-500' : 'text-slate-400'}">
-                                ${isExpired ? 'Expired' : 'Days: ' + diff}
-                            </p>
+                            <p class="font-bold text-sm text-slate-800">${t.name}</p>
+                            <p class="text-[10px] font-black uppercase ${t.gold ? 'text-amber-500' : 'text-slate-400'}">${expired ? 'Expired' : 'Days: ' + diff}</p>
                         </div>
-                        <button onclick="deleteItem(${item.id})" class="text-slate-200 hover:text-red-400 p-2"><i class="fas fa-trash-can"></i></button>
+                        <button onclick="del(${t.id})" class="text-slate-200 p-2"><i class="fas fa-trash"></i></button>
                     </div>
                 `;
             }).join('');
         }
 
-        init();
+        function add() {
+            const n = document.getElementById('in-name');
+            const d = document.getElementById('in-date');
+            if(!n.value || !d.value) return;
+            trees.push({ id: Date.now(), name: n.value, date: d.value, gold: mode === 'premium' });
+            localStorage.setItem('my_trees', JSON.stringify(trees));
+            n.value = ''; d.value = '';
+            show();
+        }
+
+        function del(id) {
+            trees = trees.filter(t => t.id !== id);
+            localStorage.setItem('my_trees', JSON.stringify(trees));
+            show();
+        }
+
+        function bePremium() {
+            mode = (mode === 'normal') ? 'premium' : 'normal';
+            localStorage.setItem('my_mode', mode);
+            location.reload();
+        }
+
+        show();
     </script>
 </body>
 </html>
