@@ -10,8 +10,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 2rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f4f7f5; color: #1e293b; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border-radius: 2rem; border: 1px solid rgba(255, 255, 255, 0.5); }
+        .premium-gradient { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .gold-badge { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
     </style>
 </head>
 <body>
@@ -23,75 +27,216 @@
         const App = () => {
             const [forest, setForest] = useState([]);
             const [isPremium, setIsPremium] = useState(false);
+            const [showPremiumModal, setShowPremiumModal] = useState(false);
             const [showLegal, setShowLegal] = useState(false);
             const [name, setName] = useState('');
             const [date, setDate] = useState('');
             const [quantity, setQuantity] = useState('');
 
             useEffect(() => {
-                const saved = localStorage.getItem('kigen_forest_v6');
+                const saved = localStorage.getItem('kigen_forest_v7');
                 if (saved) setForest(JSON.parse(saved));
-                if (localStorage.getItem('premium_status') === 'true') setIsPremium(true);
+                const premium = localStorage.getItem('premium_status') === 'true';
+                setIsPremium(premium);
             }, []);
 
             const addTree = () => {
                 if (!name || !date) return;
+                // 無料版は5つまでに制限する例（プレミアム訴求）
+                if (!isPremium && forest.length >= 5) {
+                    setShowPremiumModal(true);
+                    return;
+                }
                 const newTree = { id: Date.now(), name, date, quantity: quantity || '1' };
                 const newForest = [newTree, ...forest];
                 setForest(newForest);
-                localStorage.setItem('kigen_forest_v6', JSON.stringify(newForest));
+                localStorage.setItem('kigen_forest_v7', JSON.stringify(newForest));
                 setName(''); setDate(''); setQuantity('');
             };
 
+            const togglePremium = () => {
+                const newState = !isPremium;
+                setIsPremium(newState);
+                localStorage.setItem('premium_status', newState.toString());
+                setShowPremiumModal(false);
+            };
+
+            const deleteTree = (id) => {
+                const newForest = forest.filter(t => t.id !== id);
+                setForest(newForest);
+                localStorage.setItem('kigen_forest_v7', JSON.stringify(newForest));
+            };
+
             return (
-                <div className="max-w-md mx-auto p-6 min-h-screen">
-                    <header className="flex justify-between items-center py-8">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-emerald-600 p-3 rounded-2xl text-white">🌳</div>
-                            <h1 className="font-black text-2xl tracking-tighter text-slate-800">期限の森</h1>
+                <div className="max-w-md mx-auto p-6 min-h-screen flex flex-col">
+                    {/* Header */}
+                    <header className="flex justify-between items-center py-6">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-emerald-600 p-2 rounded-xl text-white shadow-lg animate-float">🌳</div>
+                            <h1 className="font-black text-xl tracking-tighter">期限の森</h1>
                         </div>
-                        {!isPremium && <span className="text-[10px] font-bold text-slate-400">FREE PLAN</span>}
+                        {isPremium ? (
+                            <span className="gold-badge text-[10px] font-bold text-white px-3 py-1 rounded-full shadow-sm">PREMIUM</span>
+                        ) : (
+                            <button 
+                                onClick={() => setShowPremiumModal(true)}
+                                className="bg-white border border-emerald-100 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full hover:bg-emerald-50 transition-colors"
+                            >
+                                UPGRADE
+                            </button>
+                        )}
                     </header>
 
-                    <div className="card p-8 mb-8 border border-slate-100">
-                        <div className="space-y-4">
-                            <input value={name} onChange={e => setName(e.target.value)} placeholder="食材名" className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold text-sm" />
+                    {/* Main Input */}
+                    <div className="glass-card p-6 mb-8 shadow-sm">
+                        <h2 className="text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest">新しい食材を植える</h2>
+                        <div className="space-y-3">
+                            <input 
+                                value={name} 
+                                onChange={e => setName(e.target.value)} 
+                                placeholder="食材の名前 (例: たまご)" 
+                                className="w-full p-4 bg-white/50 rounded-2xl outline-none font-bold text-sm border border-slate-100 focus:border-emerald-300 transition-all" 
+                            />
                             <div className="flex gap-2">
-                                <input value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="数量" className="w-1/2 p-4 bg-slate-50 rounded-xl outline-none font-bold text-sm" />
-                                <input value={date} onChange={e => setDate(e.target.value)} type="date" className="w-1/2 p-4 bg-slate-50 rounded-xl outline-none font-bold text-sm" />
+                                <input 
+                                    value={quantity} 
+                                    onChange={e => setQuantity(e.target.value)} 
+                                    placeholder="個数/分量" 
+                                    className="w-1/3 p-4 bg-white/50 rounded-2xl outline-none font-bold text-sm border border-slate-100" 
+                                />
+                                <input 
+                                    value={date} 
+                                    onChange={e => setDate(e.target.value)} 
+                                    type="date" 
+                                    className="w-2/3 p-4 bg-white/50 rounded-2xl outline-none font-bold text-sm border border-slate-100" 
+                                />
                             </div>
-                            <button onClick={addTree} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs tracking-widest active:scale-95 transition-all">森に植える</button>
+                            <button 
+                                onClick={addTree} 
+                                className="w-full py-4 premium-gradient text-white rounded-2xl font-black text-sm shadow-md active:scale-95 transition-all"
+                            >
+                                森に追加する
+                            </button>
                         </div>
                     </div>
 
-                    <div className="space-y-3">
+                    {/* Forest List */}
+                    <div className="flex-1 space-y-3">
+                        <div className="flex justify-between items-end mb-2 px-2">
+                            <h3 className="font-black text-sm text-slate-600 tracking-tight">管理中の食材</h3>
+                            <span className="text-[10px] font-bold text-slate-400">{forest.length} 件</span>
+                        </div>
+                        
+                        {forest.length === 0 && (
+                            <div className="text-center py-20 opacity-30">
+                                <p className="text-4xl mb-2">🏷️</p>
+                                <p className="text-xs font-bold">まだ何もありません</p>
+                            </div>
+                        )}
+
                         {forest.map(tree => (
-                            <div key={tree.id} className="bg-white p-5 rounded-3xl flex items-center gap-4 shadow-sm border border-white">
-                                <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 text-xl">🍃</div>
+                            <div key={tree.id} className="bg-white p-4 rounded-3xl flex items-center gap-4 shadow-sm group">
+                                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                                    {isPremium ? "🍱" : "🍃"}
+                                </div>
                                 <div className="flex-1">
-                                    <p className="font-black text-sm text-slate-800">{tree.name} <span className="text-slate-400 text-xs">{tree.quantity}</span></p>
-                                    <p className="text-[10px] font-black text-slate-300 uppercase mt-1">期限: {tree.date}</p>
+                                    <p className="font-black text-sm text-slate-800 leading-none">{tree.name}</p>
+                                    <p className="text-[10px] font-black text-slate-300 mt-1 uppercase">
+                                        Limit: <span className={new Date(tree.date) < new Date() ? 'text-rose-500' : ''}>{tree.date}</span>
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-black text-slate-400">{tree.quantity}</p>
+                                    <button onClick={() => deleteTree(tree.id)} className="text-slate-200 hover:text-rose-400 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         ))}
+
+                        {!isPremium && forest.length >= 3 && (
+                            <div className="bg-amber-50 border border-amber-100 p-4 rounded-3xl mt-6">
+                                <p className="text-[10px] font-black text-amber-700 leading-tight">
+                                    無料版は5個まで登録可能です。<br/>プレミアムプランで無制限に追加しましょう！
+                                </p>
+                                <button onClick={() => setShowPremiumModal(true)} className="mt-2 text-[10px] font-bold text-amber-600 underline">詳細を見る</button>
+                            </div>
+                        )}
                     </div>
 
-                    <footer className="mt-24 text-center pb-12">
-                        <button onClick={() => setShowLegal(true)} className="text-[10px] font-bold text-slate-300 underline underline-offset-4">特定商取引法に基づく表記</button>
+                    {/* Footer */}
+                    <footer className="mt-12 text-center pb-8 space-y-4">
+                        <button onClick={() => setShowLegal(true)} className="text-[9px] font-bold text-slate-300 uppercase tracking-widest hover:text-slate-400 transition-colors">Legal Notice</button>
+                        <p className="text-[8px] text-slate-300 font-medium">© 2024 Kigen no Mori AI</p>
                     </footer>
 
-                    {showLegal && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                            <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 relative shadow-2xl">
-                                <button onClick={() => setShowLegal(false)} className="absolute top-8 right-8 text-slate-300 text-xl">✕</button>
-                                <h2 className="font-black text-xl mb-8 text-slate-900">法的表記</h2>
-                                <div className="space-y-6 text-[11px] text-slate-500 leading-relaxed">
-                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">販売業者</p><p>（あなたのご本名）</p></section>
-                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">連絡先</p><p>（あなたのメールアドレス）</p></section>
-                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">価格</p><p>300円（税込）</p></section>
-                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">返品</p><p>決済後の返品・返金は不可</p></section>
+                    {/* Premium Modal */}
+                    {showPremiumModal && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-4">
+                            <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl">
+                                <div className="premium-gradient p-8 text-white text-center">
+                                    <p className="text-4xl mb-4">💎</p>
+                                    <h2 className="font-black text-2xl mb-1">Premium Plan</h2>
+                                    <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest font-mono">Unlock full potential</p>
                                 </div>
-                                <button onClick={() => setShowLegal(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-8 text-xs">閉じる</button>
+                                <div className="p-8 space-y-4">
+                                    <ul className="space-y-3">
+                                        {[
+                                            "食材の登録が無制限",
+                                            "賞味期限切れのプッシュ通知",
+                                            "プレミアム限定アイコン",
+                                            "広告の完全非表示"
+                                        ].map((text, i) => (
+                                            <li key={i} className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                                                <span className="text-emerald-500">✓</span> {text}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="pt-4 text-center">
+                                        <p className="text-2xl font-black text-slate-900">¥300<span className="text-xs text-slate-400"> / month</span></p>
+                                    </div>
+                                    <button onClick={togglePremium} className="w-full py-4 premium-gradient text-white rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all">
+                                        {isPremium ? "プランを解約する" : "今すぐアップグレード"}
+                                    </button>
+                                    <button onClick={() => setShowPremiumModal(false)} className="w-full py-2 text-[10px] font-bold text-slate-300 uppercase">Maybe later</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Legal Modal */}
+                    {showLegal && (
+                        <div className="fixed inset-0 bg-white z-[60] p-8 overflow-y-auto">
+                            <div className="max-w-xs mx-auto">
+                                <button onClick={() => setShowLegal(false)} className="mb-8 text-slate-400 font-black">← BACK</button>
+                                <h2 className="font-black text-xl mb-8">特定商取引法に<br/>基づく表記</h2>
+                                <div className="space-y-8 text-xs text-slate-500 leading-relaxed font-medium">
+                                    <section>
+                                        <p className="font-black text-slate-900 text-[9px] mb-1 uppercase tracking-tighter">販売業者</p>
+                                        <p>（あなたのご本名）</p>
+                                    </section>
+                                    <section>
+                                        <p className="font-black text-slate-900 text-[9px] mb-1 uppercase tracking-tighter">お問い合わせ先</p>
+                                        <p>（あなたのメールアドレス）</p>
+                                    </section>
+                                    <section>
+                                        <p className="font-black text-slate-900 text-[9px] mb-1 uppercase tracking-tighter">販売価格</p>
+                                        <p>月額 300円（税込）</p>
+                                    </section>
+                                    <section>
+                                        <p className="font-black text-slate-900 text-[9px] mb-1 uppercase tracking-tighter">代金の支払時期</p>
+                                        <p>購入確定時に即時決済。以降は各プランの更新日に基づく。</p>
+                                    </section>
+                                    <section>
+                                        <p className="font-black text-slate-900 text-[9px] mb-1 uppercase tracking-tighter">返品・キャンセル</p>
+                                        <p>デジタルコンテンツの性質上、決済完了後の返品・返金には応じられません。</p>
+                                    </section>
+                                </div>
+                                <div className="py-12">
+                                    <button onClick={() => setShowLegal(false)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs">同意して閉じる</button>
+                                </div>
                             </div>
                         </div>
                     )}
