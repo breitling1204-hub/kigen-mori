@@ -1,207 +1,225 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>期限の森 - KIGEN MORI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
-        body { 
-            font-family: 'Noto Sans JP', sans-serif; 
-            background: #f8fafc;
-            color: #0f172a;
-            margin: 0;
-            padding: 0;
-        }
-        .gold-glow { filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9)); color: #fbbf24 !important; }
-        .floating { animation: float 4s infinite ease-in-out; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-        
-        /* モーダル用 */
-        #legal-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
-        #legal-modal.active { display: flex; }
-    </style>
-</head>
-<body class="min-h-screen">
+import React, { useState, useEffect } from 'react';
+import { TreeDeciduous, Crown, Trash2, ShieldCheck, X, Leaf, Skull, Lock, Calendar, Sparkles, Utensils, Hash } from 'lucide-react';
 
-    <div id="app" class="max-w-md mx-auto p-6 pb-44">
-        <!-- ヘッダー -->
-        <header class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-4">
-                <div id="logo-bg" class="bg-emerald-600 p-3 rounded-2xl text-white shadow-lg">
-                    <i class="fas fa-tree text-2xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-black text-2xl tracking-tighter">期限の森</h1>
-                    <p id="status-label" class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Standard</p>
-                </div>
+const App = () => {
+  const [forest, setForest] = useState([]);
+  const [isPremium, setIsPremium] = useState(false);
+  const [showLegal, setShowLegal] = useState(false);
+  const [name, setName] = useState('');
+  const [date, setDate] = useState('');
+  const [quantity, setQuantity] = useState(''); // 数量の状態
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiRecipe, setAiRecipe] = useState(null);
+
+  // Gemini API設定 (apiKeyは空のまま。環境から提供されます)
+  const apiKey = ""; 
+
+  useEffect(() => {
+    const savedForest = localStorage.getItem('kigen_forest_v4');
+    if (savedForest) setForest(JSON.parse(savedForest));
+    const savedStatus = localStorage.getItem('kigen_is_premium_forever');
+    if (savedStatus === 'true') setIsPremium(true);
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      setIsPremium(true);
+      localStorage.setItem('kigen_is_premium_forever', 'true');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  const addTree = () => {
+    if (!name || !date) return;
+    const newTree = { 
+      id: Date.now(), 
+      name, 
+      date, 
+      quantity: quantity || '1',
+      gold: isPremium,
+      selected: false 
+    };
+    const newForest = [newTree, ...forest];
+    setForest(newForest);
+    localStorage.setItem('kigen_forest_v4', JSON.stringify(newForest));
+    setName(''); setDate(''); setQuantity('');
+  };
+
+  const removeTree = (id) => {
+    const newForest = forest.filter(t => t.id !== id);
+    setForest(newForest);
+    localStorage.setItem('kigen_forest_v4', JSON.stringify(newForest));
+  };
+
+  const toggleSelect = (id) => {
+    const newForest = forest.map(t => t.id === id ? { ...t, selected: !t.selected } : t);
+    setForest(newForest);
+  };
+
+  // AIレシピ提案機能
+  const askAI = async () => {
+    const selectedItems = forest.filter(t => t.selected).map(t => `${t.name}(${t.quantity})`);
+    if (selectedItems.length === 0) return;
+
+    setAiLoading(true);
+    const userQuery = `食材：${selectedItems.join(', ')}。これらの食材を使って作れる美味しい料理のレシピを3つ提案してください。作り方のコツも一言添えて。`;
+    const systemPrompt = "あなたは『期限の森』というアプリの専属シェフです。ユーザーの食材を活かした健康的でクリエイティブなレシピを、優しく魅力的な日本語で提案してください。";
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: userQuery }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        })
+      });
+      const result = await response.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      setAiRecipe(text);
+    } catch (error) {
+      setAiRecipe("森の精霊が忙しいようです。後ほどもう一度お試しください。");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const STRIPE_CHECKOUT_URL = "https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00";
+
+  return (
+    <div className={`min-h-screen transition-all duration-1000 ${isPremium ? 'bg-[#fdfcf4]' : 'bg-slate-50'}`}>
+      <div className="max-w-md mx-auto p-6 pb-48">
+        
+        {/* ヘッダー */}
+        <header className="flex items-center justify-between mb-10 pt-6">
+          <div className="flex items-center gap-4">
+            <div className={`p-3.5 rounded-[1.2rem] shadow-xl ${isPremium ? 'bg-amber-500' : 'bg-emerald-600'}`}>
+              <TreeDeciduous className="text-white" size={24} />
             </div>
-            <!-- 本番用URLに後で差し替え可能 -->
-            <a id="buy-link" href="https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00" target="_blank" class="bg-amber-400 text-amber-900 px-5 py-2 rounded-full font-black text-[10px] shadow-md">
-                <i class="fas fa-crown mr-1"></i> PREMIUM
+            <div>
+              <h1 className="font-black text-2xl tracking-tighter text-slate-800">期限の森</h1>
+              <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">AI Cooking Assist</p>
+            </div>
+          </div>
+          {!isPremium && (
+            <a href={STRIPE_CHECKOUT_URL} className="bg-slate-900 text-white px-4 py-2 rounded-full font-bold text-[10px] flex items-center gap-2 shadow-lg active:scale-95 transition-all">
+              <Crown size={12} className="text-amber-400" /> UPGRADE
             </a>
+          )}
         </header>
 
-        <!-- プレミアムパネル -->
-        <div id="stats-panel" class="hidden bg-slate-900 rounded-[2rem] p-6 mb-8 text-white shadow-2xl">
-            <div class="flex justify-around items-center">
-                <div class="text-center">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total Trees</p>
-                    <p id="count-val" class="text-2xl font-black italic">0</p>
-                </div>
-                <div class="text-center">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Gold Rate</p>
-                    <p id="gold-val" class="text-2xl font-black italic">0%</p>
-                </div>
+        {/* 入力フォーム */}
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-10">
+          <div className="space-y-4">
+            <input 
+              value={name} onChange={(e) => setName(e.target.value)}
+              type="text" placeholder="食材の名前（例：鶏むね肉）" 
+              className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm"
+            />
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Hash className="absolute left-4 top-4 text-slate-300" size={16} />
+                <input 
+                  value={quantity} onChange={(e) => setQuantity(e.target.value)}
+                  type="text" placeholder="数量 (g,個)" 
+                  className="w-full pl-12 pr-6 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm"
+                />
+              </div>
+              <input 
+                value={date} onChange={(e) => setDate(e.target.value)}
+                type="date" 
+                className="flex-1 px-4 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm"
+              />
             </div>
+            <button onClick={addTree} className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all mt-2 ${isPremium ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'}`}>
+              森に登録する
+            </button>
+          </div>
         </div>
 
-        <!-- 植樹エリア -->
-        <div class="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-8">
-            <div class="space-y-4">
-                <input id="tree-name" type="text" placeholder="食材の名前" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm">
-                <input id="tree-date" type="date" class="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm">
-                <button onclick="addTree()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-all text-sm uppercase">新しい木を植える</button>
-            </div>
+        {/* 食材リスト */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center px-4 mb-2">
+            <h2 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Your Forest</h2>
+            {isPremium && <p className="text-[9px] font-black text-amber-500">食材を選択してAI提案をGET!</p>}
+          </div>
+          {forest.map(tree => {
+            const diff = Math.ceil((new Date(tree.date) - new Date()) / 86400000);
+            return (
+              <div 
+                key={tree.id} 
+                onClick={() => isPremium && toggleSelect(tree.id)}
+                className={`bg-white p-4 rounded-[1.8rem] flex items-center gap-4 border transition-all ${tree.selected ? 'border-amber-400 bg-amber-50/30' : 'border-white'}`}
+              >
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${tree.gold ? 'bg-amber-50' : 'bg-slate-50'}`}>
+                  {tree.selected ? <Utensils className="text-amber-500 animate-bounce" size={24} /> : 
+                   tree.gold ? <TreeDeciduous className="text-amber-500" size={24} /> : <Leaf className="text-emerald-500" size={24} />}
+                </div>
+                <div className="flex-1">
+                  <p className="font-black text-sm text-slate-800">{tree.name} <span className="text-slate-400 font-medium ml-2 text-xs">{tree.quantity}</span></p>
+                  <p className={`text-[9px] font-black uppercase mt-1 ${diff <= 0 ? 'text-red-400' : 'text-slate-400'}`}>{diff <= 0 ? 'Expired' : `あと ${diff} 日`}</p>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); removeTree(tree.id); }} className="p-2 text-slate-100 hover:text-red-300"><Trash2 size={16} /></button>
+              </div>
+            );
+          })}
         </div>
 
-        <!-- リスト -->
-        <div id="forest-list" class="space-y-4"></div>
+        {/* AI提案ボタン (フローティング) */}
+        {isPremium && forest.some(t => t.selected) && (
+          <div className="fixed bottom-32 left-0 right-0 px-6 flex justify-center z-40">
+            <button 
+              onClick={askAI} 
+              disabled={aiLoading}
+              className="bg-slate-900 text-white px-8 py-5 rounded-full font-black text-xs shadow-2xl flex items-center gap-3 animate-bounce hover:scale-105 transition-all"
+            >
+              <Sparkles size={16} className="text-amber-400" />
+              {aiLoading ? "森の精霊が考え中..." : "この食材でレシピを提案！"}
+            </button>
+          </div>
+        )}
 
-        <!-- フッター（審査対策の法的リンク） -->
-        <footer class="mt-20 text-center pb-10">
-            <div class="flex justify-center gap-6 text-[10px] font-bold text-slate-400">
-                <button onclick="showLegal()" class="hover:text-emerald-600 transition-colors">特定商取引法に基づく表記</button>
-                <a href="#" class="hover:text-emerald-600 transition-colors">プライバシーポリシー</a>
-            </div>
-            <p class="mt-4 text-[8px] text-slate-300 tracking-widest uppercase">&copy; 2024 KIGEN MORI Project</p>
+        {/* リーガルフッター */}
+        <footer className="mt-20 text-center pb-10">
+          <button onClick={() => setShowLegal(true)} className="text-[10px] font-bold text-slate-300 underline underline-offset-4">特定商取引法に基づく表記</button>
         </footer>
-    </div>
+      </div>
 
-    <!-- 法的表記モーダル -->
-    <div id="legal-modal">
-        <div class="bg-white w-full max-w-sm rounded-[2rem] p-8 max-h-[80vh] overflow-y-auto relative">
-            <button onclick="hideLegal()" class="absolute top-6 right-6 text-slate-300"><i class="fas fa-times text-xl"></i></button>
-            <h2 class="font-black text-lg mb-6 text-emerald-900">特定商取引法に基づく表記</h2>
-            <div class="space-y-6 text-[11px] leading-relaxed text-slate-600">
-                <div>
-                    <p class="font-black text-slate-800 uppercase text-[9px]">販売業者</p>
-                    <p>期限の森 運営事務局（個人運営）</p>
-                </div>
-                <div>
-                    <p class="font-black text-slate-800 uppercase text-[9px]">お問い合わせ先</p>
-                    <p>あなたのメールアドレスや連絡先をご記入ください</p>
-                </div>
-                <div>
-                    <p class="font-black text-slate-800 uppercase text-[9px]">販売価格</p>
-                    <p>プレミアムプラン：300円（税込）</p>
-                </div>
-                <div>
-                    <p class="font-black text-slate-800 uppercase text-[9px]">代金の支払時期と方法</p>
-                    <p>クレジットカード（Stripe決済）による即時決済となります。</p>
-                </div>
-                <div>
-                    <p class="font-black text-slate-800 uppercase text-[9px]">返品・返金について</p>
-                    <p>デジタルコンテンツの特性上、決済完了後の返品・返金には応じられません。</p>
-                </div>
+      {/* AI回答モーダル */}
+      {aiRecipe && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-50 flex items-center justify-center p-6 overflow-y-auto">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 relative my-auto">
+            <button onClick={() => setAiRecipe(null)} className="absolute top-8 right-8 text-slate-300"><X /></button>
+            <div className="bg-amber-100 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
+              <Sparkles className="text-amber-600" size={28} />
             </div>
-            <button onclick="hideLegal()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-8 text-xs">閉じる</button>
+            <h2 className="font-black text-xl mb-6 text-slate-900">AIシェフの提案</h2>
+            <div className="text-[12px] leading-relaxed text-slate-600 whitespace-pre-wrap font-medium">
+              {aiRecipe}
+            </div>
+            <button onClick={() => setAiRecipe(null)} className="w-full bg-slate-900 text-white py-5 rounded-3xl font-black mt-10 text-xs active:scale-95">森に戻る</button>
+          </div>
         </div>
+      )}
+
+      {/* リーガルモーダル (ここに本名とメアドを入れてください) */}
+      {showLegal && (
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 relative">
+            <button onClick={() => setShowLegal(false)} className="absolute top-8 right-8 text-slate-300"><X /></button>
+            <h3 className="font-black text-lg mb-8">特定商取引法に基づく表記</h3>
+            <div className="space-y-5 text-[10px] text-slate-500">
+              <section><p className="font-black text-slate-900 uppercase mb-1">販売業者</p><p>（あなたの本名）</p></section>
+              <section><p className="font-black text-slate-900 uppercase mb-1">お問い合わせ先</p><p>（あなたのメールアドレス）</p></section>
+              <section><p className="font-black text-slate-900 uppercase mb-1">販売価格</p><p>プレミアムプラン：300円（税込）</p></section>
+              <section><p className="font-black text-slate-900 uppercase mb-1">返品・返金</p><p>デジタル商品のため不可</p></section>
+            </div>
+            <button onClick={() => setShowLegal(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-8 text-xs">閉じる</button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+};
 
-    <!-- 開発用体験ボタン -->
-    <div class="fixed bottom-8 left-6 right-6 max-w-md mx-auto z-50">
-        <button onclick="toggleMode()" id="demo-btn" class="w-full bg-white/90 backdrop-blur text-slate-900 py-4 rounded-[1.5rem] font-black text-[10px] shadow-2xl border border-white flex items-center justify-center gap-3">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            プレミアム体験モードを切り替える
-        </button>
-    </div>
-
-    <script>
-        let forest = JSON.parse(localStorage.getItem('kigen_forest') || '[]');
-        let mode = localStorage.getItem('kigen_mode') || 'standard';
-
-        function updateUI() {
-            const list = document.getElementById('forest-list');
-            const status = document.getElementById('status-label');
-            const logo = document.getElementById('logo-bg');
-            const stats = document.getElementById('stats-panel');
-            const buyLink = document.getElementById('buy-link');
-
-            if (mode === 'premium') {
-                status.innerText = "Premium Member";
-                status.className = "text-[10px] font-black text-amber-500 uppercase tracking-widest";
-                logo.className = "bg-amber-500 p-3 rounded-2xl text-white shadow-lg gold-glow";
-                stats.classList.remove('hidden');
-                buyLink.classList.add('hidden');
-                
-                const golds = forest.filter(t => t.gold).length;
-                document.getElementById('count-val').innerText = forest.length;
-                document.getElementById('gold-val').innerText = forest.length ? Math.round((golds/forest.length)*100) + '%' : '0%';
-            } else {
-                status.innerText = "Standard";
-                status.className = "text-[10px] font-black text-emerald-600 uppercase tracking-widest";
-                logo.className = "bg-emerald-600 p-3 rounded-2xl text-white shadow-lg";
-                stats.classList.add('hidden');
-                buyLink.classList.remove('hidden');
-            }
-
-            if (forest.length === 0) {
-                list.innerHTML = `<div class="text-center py-20 opacity-20 font-black text-xs">NO TREES IN FOREST</div>`;
-                return;
-            }
-
-            list.innerHTML = forest.sort((a,b) => new Date(a.date) - new Date(b.date)).map(t => {
-                const diff = Math.ceil((new Date(t.date) - new Date()) / 86400000);
-                const isExpired = diff <= 0;
-                let icon = t.gold ? "fa-tree" : (isExpired ? "fa-skull" : "fa-tree");
-                let color = t.gold ? "gold-glow" : (isExpired ? "text-slate-300" : (diff <= 3 ? "text-amber-500" : "text-emerald-500"));
-                return `
-                    <div class="bg-white p-5 rounded-3xl shadow-sm flex items-center gap-5 border border-white">
-                        <div class="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center">
-                            <i class="fas ${icon} ${color} text-2xl floating"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="font-black text-sm text-slate-800">${t.name}</p>
-                            <p class="text-[9px] font-black mt-1 uppercase ${isExpired ? 'text-slate-300' : 'text-emerald-600'}">
-                                ${isExpired ? 'Expired' : 'Days left: ' + diff}
-                            </p>
-                        </div>
-                        <button onclick="removeTree(${t.id})" class="text-slate-200 p-2 hover:text-red-400 transition-colors"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function addTree() {
-            const n = document.getElementById('tree-name');
-            const d = document.getElementById('tree-date');
-            if(!n.value || !d.value) return;
-            forest.push({ id: Date.now(), name: n.value, date: d.value, gold: mode === 'premium' });
-            localStorage.setItem('kigen_forest', JSON.stringify(forest));
-            n.value = ''; d.value = '';
-            updateUI();
-        }
-
-        function removeTree(id) {
-            forest = forest.filter(t => t.id !== id);
-            localStorage.setItem('kigen_forest', JSON.stringify(forest));
-            updateUI();
-        }
-
-        function toggleMode() {
-            mode = (mode === 'standard') ? 'premium' : 'standard';
-            localStorage.setItem('kigen_mode', mode);
-            updateUI();
-        }
-
-        function showLegal() { document.getElementById('legal-modal').classList.add('active'); }
-        function hideLegal() { document.getElementById('legal-modal').classList.remove('active'); }
-
-        window.onload = updateUI;
-    </script>
-</body>
-</html>
+export default App;
 
