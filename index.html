@@ -1,225 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { TreeDeciduous, Crown, Trash2, ShieldCheck, X, Leaf, Skull, Lock, Calendar, Sparkles, Utensils, Hash } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期限の森 | AI食材管理</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; }
+        .card { background: white; border-radius: 2rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-const App = () => {
-  const [forest, setForest] = useState([]);
-  const [isPremium, setIsPremium] = useState(false);
-  const [showLegal, setShowLegal] = useState(false);
-  const [name, setName] = useState('');
-  const [date, setDate] = useState('');
-  const [quantity, setQuantity] = useState(''); // 数量の状態
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiRecipe, setAiRecipe] = useState(null);
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-  // Gemini API設定 (apiKeyは空のまま。環境から提供されます)
-  const apiKey = ""; 
+        const App = () => {
+            const [forest, setForest] = useState([]);
+            const [isPremium, setIsPremium] = useState(false);
+            const [showLegal, setShowLegal] = useState(false);
+            const [name, setName] = useState('');
+            const [date, setDate] = useState('');
+            const [quantity, setQuantity] = useState('');
 
-  useEffect(() => {
-    const savedForest = localStorage.getItem('kigen_forest_v4');
-    if (savedForest) setForest(JSON.parse(savedForest));
-    const savedStatus = localStorage.getItem('kigen_is_premium_forever');
-    if (savedStatus === 'true') setIsPremium(true);
+            useEffect(() => {
+                const saved = localStorage.getItem('kigen_forest_v6');
+                if (saved) setForest(JSON.parse(saved));
+                if (localStorage.getItem('premium_status') === 'true') setIsPremium(true);
+            }, []);
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      setIsPremium(true);
-      localStorage.setItem('kigen_is_premium_forever', 'true');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
+            const addTree = () => {
+                if (!name || !date) return;
+                const newTree = { id: Date.now(), name, date, quantity: quantity || '1' };
+                const newForest = [newTree, ...forest];
+                setForest(newForest);
+                localStorage.setItem('kigen_forest_v6', JSON.stringify(newForest));
+                setName(''); setDate(''); setQuantity('');
+            };
 
-  const addTree = () => {
-    if (!name || !date) return;
-    const newTree = { 
-      id: Date.now(), 
-      name, 
-      date, 
-      quantity: quantity || '1',
-      gold: isPremium,
-      selected: false 
-    };
-    const newForest = [newTree, ...forest];
-    setForest(newForest);
-    localStorage.setItem('kigen_forest_v4', JSON.stringify(newForest));
-    setName(''); setDate(''); setQuantity('');
-  };
-
-  const removeTree = (id) => {
-    const newForest = forest.filter(t => t.id !== id);
-    setForest(newForest);
-    localStorage.setItem('kigen_forest_v4', JSON.stringify(newForest));
-  };
-
-  const toggleSelect = (id) => {
-    const newForest = forest.map(t => t.id === id ? { ...t, selected: !t.selected } : t);
-    setForest(newForest);
-  };
-
-  // AIレシピ提案機能
-  const askAI = async () => {
-    const selectedItems = forest.filter(t => t.selected).map(t => `${t.name}(${t.quantity})`);
-    if (selectedItems.length === 0) return;
-
-    setAiLoading(true);
-    const userQuery = `食材：${selectedItems.join(', ')}。これらの食材を使って作れる美味しい料理のレシピを3つ提案してください。作り方のコツも一言添えて。`;
-    const systemPrompt = "あなたは『期限の森』というアプリの専属シェフです。ユーザーの食材を活かした健康的でクリエイティブなレシピを、優しく魅力的な日本語で提案してください。";
-
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: userQuery }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] }
-        })
-      });
-      const result = await response.json();
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      setAiRecipe(text);
-    } catch (error) {
-      setAiRecipe("森の精霊が忙しいようです。後ほどもう一度お試しください。");
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const STRIPE_CHECKOUT_URL = "https://buy.stripe.com/test_dRm3cxeri0dX8Hv1jb87K00";
-
-  return (
-    <div className={`min-h-screen transition-all duration-1000 ${isPremium ? 'bg-[#fdfcf4]' : 'bg-slate-50'}`}>
-      <div className="max-w-md mx-auto p-6 pb-48">
-        
-        {/* ヘッダー */}
-        <header className="flex items-center justify-between mb-10 pt-6">
-          <div className="flex items-center gap-4">
-            <div className={`p-3.5 rounded-[1.2rem] shadow-xl ${isPremium ? 'bg-amber-500' : 'bg-emerald-600'}`}>
-              <TreeDeciduous className="text-white" size={24} />
-            </div>
-            <div>
-              <h1 className="font-black text-2xl tracking-tighter text-slate-800">期限の森</h1>
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">AI Cooking Assist</p>
-            </div>
-          </div>
-          {!isPremium && (
-            <a href={STRIPE_CHECKOUT_URL} className="bg-slate-900 text-white px-4 py-2 rounded-full font-bold text-[10px] flex items-center gap-2 shadow-lg active:scale-95 transition-all">
-              <Crown size={12} className="text-amber-400" /> UPGRADE
-            </a>
-          )}
-        </header>
-
-        {/* 入力フォーム */}
-        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-10">
-          <div className="space-y-4">
-            <input 
-              value={name} onChange={(e) => setName(e.target.value)}
-              type="text" placeholder="食材の名前（例：鶏むね肉）" 
-              className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm"
-            />
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <Hash className="absolute left-4 top-4 text-slate-300" size={16} />
-                <input 
-                  value={quantity} onChange={(e) => setQuantity(e.target.value)}
-                  type="text" placeholder="数量 (g,個)" 
-                  className="w-full pl-12 pr-6 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm"
-                />
-              </div>
-              <input 
-                value={date} onChange={(e) => setDate(e.target.value)}
-                type="date" 
-                className="flex-1 px-4 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm"
-              />
-            </div>
-            <button onClick={addTree} className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all mt-2 ${isPremium ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'}`}>
-              森に登録する
-            </button>
-          </div>
-        </div>
-
-        {/* 食材リスト */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-center px-4 mb-2">
-            <h2 className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Your Forest</h2>
-            {isPremium && <p className="text-[9px] font-black text-amber-500">食材を選択してAI提案をGET!</p>}
-          </div>
-          {forest.map(tree => {
-            const diff = Math.ceil((new Date(tree.date) - new Date()) / 86400000);
             return (
-              <div 
-                key={tree.id} 
-                onClick={() => isPremium && toggleSelect(tree.id)}
-                className={`bg-white p-4 rounded-[1.8rem] flex items-center gap-4 border transition-all ${tree.selected ? 'border-amber-400 bg-amber-50/30' : 'border-white'}`}
-              >
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${tree.gold ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                  {tree.selected ? <Utensils className="text-amber-500 animate-bounce" size={24} /> : 
-                   tree.gold ? <TreeDeciduous className="text-amber-500" size={24} /> : <Leaf className="text-emerald-500" size={24} />}
+                <div className="max-w-md mx-auto p-6 min-h-screen">
+                    <header className="flex justify-between items-center py-8">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-600 p-3 rounded-2xl text-white">🌳</div>
+                            <h1 className="font-black text-2xl tracking-tighter text-slate-800">期限の森</h1>
+                        </div>
+                        {!isPremium && <span className="text-[10px] font-bold text-slate-400">FREE PLAN</span>}
+                    </header>
+
+                    <div className="card p-8 mb-8 border border-slate-100">
+                        <div className="space-y-4">
+                            <input value={name} onChange={e => setName(e.target.value)} placeholder="食材名" className="w-full p-4 bg-slate-50 rounded-xl outline-none font-bold text-sm" />
+                            <div className="flex gap-2">
+                                <input value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="数量" className="w-1/2 p-4 bg-slate-50 rounded-xl outline-none font-bold text-sm" />
+                                <input value={date} onChange={e => setDate(e.target.value)} type="date" className="w-1/2 p-4 bg-slate-50 rounded-xl outline-none font-bold text-sm" />
+                            </div>
+                            <button onClick={addTree} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs tracking-widest active:scale-95 transition-all">森に植える</button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {forest.map(tree => (
+                            <div key={tree.id} className="bg-white p-5 rounded-3xl flex items-center gap-4 shadow-sm border border-white">
+                                <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 text-xl">🍃</div>
+                                <div className="flex-1">
+                                    <p className="font-black text-sm text-slate-800">{tree.name} <span className="text-slate-400 text-xs">{tree.quantity}</span></p>
+                                    <p className="text-[10px] font-black text-slate-300 uppercase mt-1">期限: {tree.date}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <footer className="mt-24 text-center pb-12">
+                        <button onClick={() => setShowLegal(true)} className="text-[10px] font-bold text-slate-300 underline underline-offset-4">特定商取引法に基づく表記</button>
+                    </footer>
+
+                    {showLegal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                            <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 relative shadow-2xl">
+                                <button onClick={() => setShowLegal(false)} className="absolute top-8 right-8 text-slate-300 text-xl">✕</button>
+                                <h2 className="font-black text-xl mb-8 text-slate-900">法的表記</h2>
+                                <div className="space-y-6 text-[11px] text-slate-500 leading-relaxed">
+                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">販売業者</p><p>（あなたのご本名）</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">連絡先</p><p>（あなたのメールアドレス）</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">価格</p><p>300円（税込）</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase text-[9px] mb-1">返品</p><p>決済後の返品・返金は不可</p></section>
+                                </div>
+                                <button onClick={() => setShowLegal(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-8 text-xs">閉じる</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <div className="flex-1">
-                  <p className="font-black text-sm text-slate-800">{tree.name} <span className="text-slate-400 font-medium ml-2 text-xs">{tree.quantity}</span></p>
-                  <p className={`text-[9px] font-black uppercase mt-1 ${diff <= 0 ? 'text-red-400' : 'text-slate-400'}`}>{diff <= 0 ? 'Expired' : `あと ${diff} 日`}</p>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); removeTree(tree.id); }} className="p-2 text-slate-100 hover:text-red-300"><Trash2 size={16} /></button>
-              </div>
             );
-          })}
-        </div>
+        };
 
-        {/* AI提案ボタン (フローティング) */}
-        {isPremium && forest.some(t => t.selected) && (
-          <div className="fixed bottom-32 left-0 right-0 px-6 flex justify-center z-40">
-            <button 
-              onClick={askAI} 
-              disabled={aiLoading}
-              className="bg-slate-900 text-white px-8 py-5 rounded-full font-black text-xs shadow-2xl flex items-center gap-3 animate-bounce hover:scale-105 transition-all"
-            >
-              <Sparkles size={16} className="text-amber-400" />
-              {aiLoading ? "森の精霊が考え中..." : "この食材でレシピを提案！"}
-            </button>
-          </div>
-        )}
-
-        {/* リーガルフッター */}
-        <footer className="mt-20 text-center pb-10">
-          <button onClick={() => setShowLegal(true)} className="text-[10px] font-bold text-slate-300 underline underline-offset-4">特定商取引法に基づく表記</button>
-        </footer>
-      </div>
-
-      {/* AI回答モーダル */}
-      {aiRecipe && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-50 flex items-center justify-center p-6 overflow-y-auto">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 relative my-auto">
-            <button onClick={() => setAiRecipe(null)} className="absolute top-8 right-8 text-slate-300"><X /></button>
-            <div className="bg-amber-100 w-14 h-14 rounded-2xl flex items-center justify-center mb-6">
-              <Sparkles className="text-amber-600" size={28} />
-            </div>
-            <h2 className="font-black text-xl mb-6 text-slate-900">AIシェフの提案</h2>
-            <div className="text-[12px] leading-relaxed text-slate-600 whitespace-pre-wrap font-medium">
-              {aiRecipe}
-            </div>
-            <button onClick={() => setAiRecipe(null)} className="w-full bg-slate-900 text-white py-5 rounded-3xl font-black mt-10 text-xs active:scale-95">森に戻る</button>
-          </div>
-        </div>
-      )}
-
-      {/* リーガルモーダル (ここに本名とメアドを入れてください) */}
-      {showLegal && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 relative">
-            <button onClick={() => setShowLegal(false)} className="absolute top-8 right-8 text-slate-300"><X /></button>
-            <h3 className="font-black text-lg mb-8">特定商取引法に基づく表記</h3>
-            <div className="space-y-5 text-[10px] text-slate-500">
-              <section><p className="font-black text-slate-900 uppercase mb-1">販売業者</p><p>（あなたの本名）</p></section>
-              <section><p className="font-black text-slate-900 uppercase mb-1">お問い合わせ先</p><p>（あなたのメールアドレス）</p></section>
-              <section><p className="font-black text-slate-900 uppercase mb-1">販売価格</p><p>プレミアムプラン：300円（税込）</p></section>
-              <section><p className="font-black text-slate-900 uppercase mb-1">返品・返金</p><p>デジタル商品のため不可</p></section>
-            </div>
-            <button onClick={() => setShowLegal(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black mt-8 text-xs">閉じる</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default App;
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
 
