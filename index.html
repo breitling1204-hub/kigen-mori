@@ -3,87 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>期限の森 | 特定商取引法に基づく表記</title>
+    <title>期限の森 | AI食材管理</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; }
-        .app-card { background: white; border-radius: 2.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; color: #1e293b; -webkit-tap-highlight-color: transparent; }
+        .app-card { background: white; border-radius: 2.5rem; border: 1px solid #f1f5f9; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .gradient-btn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .ai-active { border: 2px solid #fbbf24; background-color: #fffbeb; }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
-        const App = () => (
-            <div className="max-w-md mx-auto p-6 pt-12 pb-24">
-                <div className="text-center mb-10">
-                    <span className="text-5xl">🌳</span>
-                    <h1 className="text-2xl font-black mt-2 italic tracking-tighter text-emerald-600">期限の森</h1>
-                    <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">AI Inventory Manage</p>
-                </div>
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [forest, setForest] = useState([]);
+            const [isPremium, setIsPremium] = useState(false);
+            const [showLegal, setShowLegal] = useState(false);
+            const [name, setName] = useState('');
+            const [date, setDate] = useState('');
+            const [quantity, setQuantity] = useState('');
+            const [aiLoading, setAiLoading] = useState(false);
+            const [aiResult, setAiResult] = useState(null);
+
+            // --- Stripeのリンク ---
+            const STRIPE_LINK = "https://buy.stripe.com/test_5kAcND9uE6u4e7S8ww"; // 必要に応じて本番用URLに変更してください
+            const apiKey = ""; // Gemini API Key
+
+            useEffect(() => {
+                const saved = localStorage.getItem('kigen_forest_final');
+                if (saved) setForest(JSON.parse(saved));
                 
-                <div className="app-card p-8 border border-slate-100">
-                    <h2 className="font-black text-xl mb-8 border-b-4 border-emerald-500 pb-2 text-slate-800">特定商取引法に基づく表記</h2>
-                    
-                    <div className="space-y-6 text-sm">
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">販売業者</p>
-                            <p className="font-bold text-slate-800">菅崎正伸</p>
-                        </section>
+                // プレミアム状態の確認
+                if (localStorage.getItem('kigen_premium_unlocked') === 'true') {
+                    setIsPremium(true);
+                }
+            }, []);
 
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">所在地</p>
-                            <p className="font-bold text-slate-800 text-xs">
-                                {/* ↓ ここにあなたの住所（都道府県から）を入力してください ↓ */}
-                                岩手県盛岡市南大通3丁目9−28
-                            </p>
-                        </section>
+            const addFood = () => {
+                if (!name || !date) return;
+                const newFood = { id: Date.now(), name, date, quantity: quantity || "1個", selected: false };
+                const updated = [newFood, ...forest];
+                setForest(updated);
+                localStorage.setItem('kigen_forest_final', JSON.stringify(updated));
+                setName(''); setDate(''); setQuantity('');
+            };
 
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">電話番号</p>
-                            <p className="font-bold text-slate-800">
-                                {/* ↓ ここにあなたの電話番号を入力してください ↓ */}
-                                090‐7337‐4622
-                            </p>
-                        </section>
-                        
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">メールアドレス</p>
-                            <p className="font-bold text-slate-800">breitling1204@gmail.com</p>
-                        </section>
-                        
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">販売価格</p>
-                            <p className="font-bold text-slate-800">プレミアムプラン：300円（税込）</p>
-                            <p className="text-[10px] text-slate-400 leading-relaxed mt-1">※一度のお支払いで全機能が永続的に利用可能な「買い切り型」商品です。</p>
-                        </section>
+            const toggleSelect = (id) => {
+                if (!isPremium) return;
+                setForest(forest.map(f => f.id === id ? { ...f, selected: !f.selected } : f));
+            };
 
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">代金の支払時期と方法</p>
-                            <p className="font-bold text-slate-800 text-xs">支払方法：クレジットカード決済（Stripe）<br/>支払時期：購入時に即時決済されます。</p>
-                        </section>
+            const deleteFood = (id, e) => {
+                e.stopPropagation();
+                const updated = forest.filter(f => f.id !== id);
+                setForest(updated);
+                localStorage.setItem('kigen_forest_final', JSON.stringify(updated));
+            };
 
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">商品の引渡し時期</p>
-                            <p className="font-bold text-slate-800 text-xs">決済完了後、即時にプレミアム機能が有効化されます。</p>
-                        </section>
+            const askAI = async () => {
+                const selected = forest.filter(f => f.selected);
+                if (selected.length === 0) return;
+                setAiLoading(true);
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: `${selected.map(s => s.name).join(', ')}を使った、時短で美味しいレシピを3つ簡潔に教えてください。` }] }]
+                        })
+                    });
+                    const data = await res.json();
+                    setAiResult(data.candidates[0].content.parts[0].text);
+                } catch (e) {
+                    setAiResult("通信エラーが発生しました。");
+                } finally {
+                    setAiLoading(false);
+                }
+            };
 
-                        <section>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase mb-1 tracking-widest">返品・キャンセル</p>
-                            <p className="font-bold text-slate-800 text-xs">デジタルコンテンツの性質上、決済完了後のキャンセル・返金はお受けできません。</p>
-                        </section>
+            return (
+                <div className="max-w-md mx-auto min-h-screen p-6 pb-32 relative">
+                    <header className="flex justify-between items-center py-8">
+                        <div className="flex items-center gap-2">
+                            <span className="text-3xl">🌳</span>
+                            <h1 className="font-black text-xl italic text-emerald-600">期限の森</h1>
+                        </div>
+                        {isPremium ? (
+                            <span className="text-[10px] font-black px-4 py-2 bg-amber-100 text-amber-600 rounded-full border border-amber-200">PREMIUM</span>
+                        ) : (
+                            <a href={STRIPE_LINK} className="text-[10px] font-black px-4 py-2 bg-slate-900 text-white rounded-full hover:bg-slate-700 transition-colors">UPGRADE</a>
+                        )}
+                    </header>
+
+                    <div className="app-card p-6 mb-8 border border-slate-100">
+                        <div className="space-y-3">
+                            <input value={name} onChange={e => setName(e.target.value)} placeholder="食材名 (例: 卵)" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm focus:ring-2 ring-emerald-500/20" />
+                            <div className="flex gap-2">
+                                <input value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="数量" className="w-1/3 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm focus:ring-2 ring-emerald-500/20" />
+                                <input value={date} onChange={e => setDate(e.target.value)} type="date" className="w-2/3 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-sm focus:ring-2 ring-emerald-500/20" />
+                            </div>
+                            <button onClick={addFood} className="w-full py-4 gradient-btn text-white rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all">森に食材を追加する</button>
+                        </div>
                     </div>
-                </div>
 
-                <div className="mt-12 text-center border-t pt-8 border-slate-100">
-                    <p className="text-[10px] text-slate-300 font-bold italic tracking-widest uppercase mb-2">Compliance for Stripe Audit</p>
-                    <p className="text-[9px] text-slate-400 leading-relaxed">このページは、Stripeの決済審査における「特定商取引法に基づく表記」の掲示基準を満たすために作成されました。</p>
+                    <div className="space-y-3">
+                        {forest.length === 0 && (
+                            <div className="text-center py-20 text-slate-300">
+                                <p className="text-sm font-bold">食材がありません</p>
+                                <p className="text-[10px]">上のフォームから追加してください</p>
+                            </div>
+                        )}
+                        {forest.map(item => (
+                            <div key={item.id} onClick={() => toggleSelect(item.id)} className={`p-4 rounded-[2rem] flex items-center gap-4 transition-all border-2 relative ${item.selected ? 'ai-active' : 'bg-white border-white shadow-sm'}`}>
+                                <div className="text-2xl">{isPremium ? (item.selected ? '✨' : '💎') : '🍃'}</div>
+                                <div className="flex-1">
+                                    <p className="font-black text-sm">{item.name} <span className="text-slate-400 text-[10px]">{item.quantity}</span></p>
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-tighter">期限: {item.date}</p>
+                                </div>
+                                <button onClick={(e) => deleteFood(item.id, e)} className="text-slate-200 p-2 hover:text-red-400">✕</button>
+                            </div>
+                        ))}
+                    </div>
+
+                    {!isPremium && forest.length > 0 && (
+                        <div className="mt-8 p-4 bg-slate-100 rounded-3xl text-center">
+                            <p className="text-[10px] font-bold text-slate-500">プレミアムプラン(300円)にアップグレードすると<br/>AIレシピ提案機能が解放されます</p>
+                        </div>
+                    )}
+
+                    {isPremium && forest.some(f => f.selected) && (
+                        <div className="fixed bottom-10 left-0 right-0 px-6 flex justify-center z-50">
+                            <button onClick={askAI} disabled={aiLoading} className="bg-slate-900 text-white px-10 py-4 rounded-full font-black text-xs shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 border border-slate-700">
+                                {aiLoading ? <span className="animate-spin">🌀</span> : "🪄"} 
+                                {aiLoading ? "AIがレシピを生成中..." : "選択した食材でレシピを作る"}
+                            </button>
+                        </div>
+                    )}
+
+                    {aiResult && (
+                        <div className="fixed inset-0 bg-white z-[100] p-8 overflow-y-auto slide-up">
+                            <div className="max-w-md mx-auto">
+                                <button onClick={() => setAiResult(null)} className="text-slate-400 font-bold mb-6 flex items-center gap-1">✕ 閉じる</button>
+                                <div className="bg-amber-50 p-6 rounded-[2.5rem] border border-amber-100">
+                                    <h2 className="font-black text-xl mb-4 text-amber-700">🌳 AI森のレシピ</h2>
+                                    <div className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700 font-medium font-sans">{aiResult}</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <footer className="mt-20 text-center pb-10 border-t pt-10 border-slate-100">
+                        <button onClick={() => setShowLegal(true)} className="text-[10px] font-bold text-slate-300 underline hover:text-slate-400 transition-colors">特定商取引法に基づく表記</button>
+                        <p className="text-[9px] text-slate-200 mt-2 italic">© 期限の森 - AI食材管理アプリ</p>
+                    </footer>
+
+                    {showLegal && (
+                        <div className="fixed inset-0 bg-white z-[200] p-10 overflow-y-auto">
+                            <div className="max-w-md mx-auto">
+                                <button onClick={() => setShowLegal(false)} className="mb-10 font-black text-slate-400 uppercase text-xs flex items-center gap-2">← 戻る</button>
+                                <h3 className="font-black text-xl mb-8 border-b-4 border-emerald-500 pb-2 inline-block">特定商取引法に基づく表記</h3>
+                                <div className="space-y-6 text-[11px] text-slate-500">
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">販売業者</p><p>菅崎正伸</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">所在地</p><p>（あなたの住所がここに入ります）</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">電話番号</p><p>（あなたの電話番号がここに入ります）</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">メールアドレス</p><p>breitling1204@gmail.com</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">販売価格</p><p>プレミアムプラン：300円（税込）</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">商品の引渡し時期</p><p>決済完了後、即時に提供。</p></section>
+                                    <section><p className="font-black text-slate-900 uppercase mb-1">返品・返金</p><p>デジタルコンテンツの性質上、返金不可。</p></section>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div>
-        );
+            );
+        };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
